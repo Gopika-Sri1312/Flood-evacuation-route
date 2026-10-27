@@ -1,0 +1,183 @@
+"""Flood Evacuation Route and Shelter Allocation System.
+ 
+Academic prototype for a DAA mini-project. It uses illustrative data only
+and is NOT a live or official emergency-routing service.
+"""
+ 
+import heapq
+import math
+ 
+ 
+def build_graph(locations, roads):
+    """Build an undirected weighted graph as an adjacency list."""
+    graph = {loc: [] for loc in locations}
+    for u, v, w in roads:
+        if u not in graph or v not in graph:
+            raise ValueError(f"Road {u}-{v} uses an unknown location")
+        graph[u].append((v, w))
+        graph[v].append((u, w))
+    return graph
+ 
+ 
+def validate_weights(graph):
+    """Dijkstra needs non-negative weights, so reject anything else."""
+    for u in graph:
+        for v, w in graph[u]:
+            if w < 0:
+                raise ValueError(
+                    f"Negative weight {w} on road {u}-{v}; "
+                    "Dijkstra requires non-negative weights"
+                )
+ 
+ 
+def dijkstra(graph, start):
+    """Return shortest distances and predecessors from the start node."""
+    validate_weights(graph)
+    dist = {node: math.inf for node in graph}
+    prev = {node: None for node in graph}
+    dist[start] = 0
+    heap = [(0, start)]
+    while heap:
+        d, u = heapq.heappop(heap)
+        if d > dist[u]:
+            continue  # outdated heap entry
+        for v, w in graph[u]:
+            if d + w < dist[v]:
+                dist[v] = d + w
+                prev[v] = u
+                heapq.heappush(heap, (dist[v], v))
+    return dist, prev
+ 
+ 
+def reconstruct_path(prev, dist, start, target):
+    """Rebuild the route start -> target, or return None if unreachable."""
+    if dist[target] == math.inf:
+        return None
+    path = []
+    node = target
+    while node is not None:
+        path.append(node)
+        node = prev[node]
+    path.reverse()
+    return path if path[0] == start else None
+ 
+ 
+def merge_sort(items, key):
+    """Stable Merge Sort: divide, sort each half, merge."""
+    if len(items) <= 1:
+        return items
+    mid = len(items) // 2
+    left = merge_sort(items[:mid], key)
+    right = merge_sort(items[mid:], key)
+    merged = []
+    i = j = 0
+    while i < len(left) and j < len(right):
+        if key(left[i]) <= key(right[j]):
+            merged.append(left[i])
+            i += 1
+        else:
+            merged.append(right[j])
+            j += 1
+    merged.extend(left[i:])
+    merged.extend(right[j:])
+    return merged
+ 
+ 
+def allocate_groups(groups, ranked_shelters, remaining):
+    """Greedy allocation: each group takes the nearest shelter that still
+    has enough capacity for the whole group."""
+    assignments = []
+    unassigned = []
+    for name, size in groups:
+        placed = False
+        for shelter in ranked_shelters:
+            if remaining[shelter["name"]] >= size:
+                remaining[shelter["name"]] -= size
+                assignments.append({
+                    "group": name,
+                    "size": size,
+                    "shelter": shelter["name"],
+                    "route": shelter["route"],
+                    "cost": shelter["cost"],
+                    "remaining": remaining[shelter["name"]],
+                })
+                placed = True
+                break
+        if not placed:
+            unassigned.append((name, size))
+    return assignments, unassigned
+ 
+ 
+def plan_evacuation(locations, roads, start, shelters, groups):
+    """Run the full pipeline and return all results."""
+    graph = build_graph(locations, roads)
+    dist, prev = dijkstra(graph, start)
+ 
+    reachable = []
+    unreachable = []
+    for name, location, capacity in shelters:
+        route = reconstruct_path(prev, dist, start, location)
+        if route is None:
+            unreachable.append(name)
+        else:
+            reachable.append({"name": name, "location": location,
+                              "capacity": capacity,
+                              "cost": dist[location], "route": route})
+ 
+    ranked = merge_sort(reachable, key=lambda s: s["cost"])
+    remaining = {s["name"]: s["capacity"] for s in ranked}
+    assignments, unassigned = allocate_groups(groups, ranked, remaining)
+    return {"dist": dist, "ranked": ranked, "unreachable": unreachable,
+            "assignments": assignments, "unassigned": unassigned,
+            "remaining": remaining}
+ 
+ 
+def show(result, start, locations):
+    """Print the results in a readable console format."""
+    print(f"Shortest distances from {start}:")
+    for loc in locations:
+        d = result["dist"][loc]
+        print(f"  {loc}: {'unreachable' if d == math.inf else d}")
+ 
+    print("\nShelters ordered by route cost:")
+    for i, s in enumerate(result["ranked"], 1):
+        print(f"  {i}. {s['name']} (at {s['location']}) - cost {s['cost']}, "
+              f"capacity {s['capacity']}")
+    for name in result["unreachable"]:
+        print(f"  Unreachable shelter: {name}")
+ 
+    print("\nGroup assignments:")
+    for a in result["assignments"]:
+        print(f"  {a['group']} ({a['size']} people) -> {a['shelter']}")
+        print(f"    Route: {' -> '.join(a['route'])}")
+        print(f"    Route cost: {a['cost']}")
+        print(f"    Remaining capacity in {a['shelter']}: {a['remaining']}")
+ 
+    if result["unassigned"]:
+        print("\nGroups that could not be assigned:")
+        for name, size in result["unassigned"]:
+            print(f"  {name} ({size} people): no reachable shelter has "
+                  "enough remaining capacity")
+    else:
+        print("\nAll groups were assigned.")
+ 
+    print("\nFinal remaining capacity:")
+    for name, cap in result["remaining"].items():
+        print(f"  {name}: {cap}")
+ 
+ 
+def main():
+    # Illustrative sample data only - not real locations or emergency data.
+    locations = ["A", "B", "C", "D", "E"]
+    roads = [("A", "B", 2), ("A", "C", 5), ("B", "C", 1),
+             ("B", "D", 4), ("C", "D", 1), ("C", "E", 3)]
+    start = "A"
+    shelters = [("North", "D", 5), ("East", "E", 4)]
+    groups = [("Group 1", 3), ("Group 2", 4), ("Group 3", 2)]
+ 
+    result = plan_evacuation(locations, roads, start, shelters, groups)
+    show(result, start, locations)
+ 
+ 
+if __name__ == "__main__":
+    main()
