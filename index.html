@@ -1,0 +1,723 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FloodSafe | Evacuation Planner</title>
+<style>
+:root {
+  --navy: #142744;
+  --blue: #3478f6;
+  --green: #16a085;
+  --purple: #805ad5;
+  --bg: #f3f6fb;
+  --text: #1e293b;
+  --muted: #718096;
+  --border: #e2e8f0;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+header {
+  background: var(--navy);
+  color: white;
+  padding: 22px 5%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.brand { display: flex; gap: 12px; align-items: center; }
+.logo {
+  width: 46px; height: 46px;
+  border-radius: 14px;
+  display: grid; place-items: center;
+  background: #3478f6;
+  font-size: 25px;
+}
+h1 { margin: 0; font-size: 25px; }
+.subtitle { margin-top: 5px; color: #cbd5e1; font-size: 13px; }
+.status {
+  background: #203c5d;
+  border: 1px solid #385474;
+  color: #c8f7e7;
+  padding: 9px 13px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+.container { max-width: 1450px; margin: auto; padding: 24px; }
+.notice {
+  padding: 12px 15px;
+  background: #fff8e6;
+  color: #805b14;
+  border: 1px solid #f4dfaa;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.stat, .card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 3px 12px #1e293b08;
+}
+.stat { padding: 18px; }
+.stat-label { color: var(--muted); font-size: 13px; }
+.stat-value { font-size: 27px; font-weight: 750; margin: 9px 0 5px; }
+.stat-note { color: var(--muted); font-size: 12px; }
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, .8fr);
+  gap: 20px;
+  align-items: start;
+}
+.card { padding: 20px; margin-bottom: 20px; min-width: 0; }
+.card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+h2 { margin: 0; font-size: 17px; }
+h3 { font-size: 14px; margin: 0 0 12px; }
+.pill {
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: #edf4ff;
+  color: #2860ba;
+  font-size: 11px;
+  font-weight: 700;
+}
+.map-wrap {
+  background: #f8fbff;
+  border: 1px solid #e7edf5;
+  border-radius: 12px;
+  overflow: hidden;
+}
+svg { width: 100%; display: block; }
+.road {
+  stroke: #a9b8ca; stroke-width: 4;
+  stroke-linecap: round;
+}
+.road.active { stroke: var(--green); stroke-width: 7; }
+.road-label {
+  font-size: 12px; font-weight: 700;
+  fill: #53657b;
+  paint-order: stroke; stroke: white;
+  stroke-width: 5px; stroke-linejoin: round;
+}
+.node { fill: var(--blue); stroke: white; stroke-width: 4; }
+.node.shelter { fill: #e99a32; }
+.node-label {
+  fill: white; font-size: 15px; font-weight: 800;
+  text-anchor: middle; dominant-baseline: central;
+}
+.map-name { fill: #334155; font-size: 12px; font-weight: 650; }
+.legend {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  padding: 13px 3px 0; color: var(--muted); font-size: 12px;
+}
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label { display: block; font-size: 12px; font-weight: 650; margin-bottom: 7px; }
+select, input {
+  width: 100%; padding: 11px;
+  border: 1px solid #d6dfeb; border-radius: 8px;
+  background: white; color: var(--text); font: inherit;
+}
+button {
+  border: 0; border-radius: 9px; padding: 12px 14px;
+  color: white; font-weight: 700; font-size: 13px;
+  cursor: pointer; transition: .15s; width: 100%;
+}
+button:hover { filter: brightness(.94); transform: translateY(-1px); }
+button:focus-visible, select:focus-visible {
+  outline: 3px solid #93c5fd; outline-offset: 2px;
+}
+.blue { background: var(--blue); }
+.green { background: var(--green); }
+.purple { background: var(--purple); }
+.dark { background: #42526a; }
+.action { margin-top: 12px; }
+.actions { display: grid; gap: 10px; }
+.result {
+  margin-top: 15px; padding: 13px;
+  background: #f5f8fc; border: 1px solid var(--border);
+  border-radius: 10px; font-size: 13px; line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.result strong { color: #172b4d; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td {
+  text-align: left; padding: 11px 8px;
+  border-bottom: 1px solid #edf1f6;
+}
+th { color: var(--muted); font-weight: 650; }
+tbody tr:last-child td { border-bottom: 0; }
+.capacity {
+  height: 7px; background: #e7edf5; border-radius: 10px;
+  overflow: hidden; margin-top: 5px; min-width: 55px;
+}
+.capacity span { display: block; height: 100%; background: var(--green); }
+.tag {
+  display: inline-block; padding: 5px 7px; border-radius: 6px;
+  background: #e8f8f1; color: #087b5e; font-weight: 700;
+  font-size: 11px;
+}
+.tag.orange { background: #fff2df; color: #9a5a08; }
+.algorithm {
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.algorithm:last-child { border-bottom: 0; }
+.algorithm p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+footer { text-align: center; color: var(--muted); font-size: 12px; padding: 12px 20px 28px; }
+@media (max-width: 850px) {
+  .layout { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .container { padding: 14px; }
+  .stats { gap: 10px; }
+  .stat { padding: 13px; }
+  .stat-value { font-size: 23px; }
+  .card { padding: 15px; }
+  h1 { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">⌁</div>
+    <div>
+      <h1>FloodSafe</h1>
+      <div class="subtitle">Smart Flood Evacuation Route & Shelter Allocation</div>
+    </div>
+  </div>
+  <div class="status">● Academic Prototype</div>
+</header>
+
+<main class="container">
+  <div class="notice">
+    <strong>Demonstration only:</strong> All locations, road distances and shelter capacities are fictional.
+    This website is not a live emergency service.
+  </div>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="stat-label">Locations</div>
+      <div class="stat-value">05</div>
+      <div class="stat-note">Graph vertices</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Road connections</div>
+      <div class="stat-value">06</div>
+      <div class="stat-note">Weighted edges</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Total shelter capacity</div>
+      <div class="stat-value">09</div>
+      <div class="stat-note">Illustrative people count</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Evacuation groups</div>
+      <div class="stat-value">03</div>
+      <div class="stat-note">Sample input groups</div>
+    </div>
+  </section>
+
+  <div class="layout">
+    <section>
+      <div class="card">
+        <div class="card-heading">
+          <h2>Road Network</h2>
+          <span class="pill">WEIGHTED GRAPH</span>
+        </div>
+        <div class="map-wrap">
+          <svg id="network" viewBox="0 0 600 390" role="img"
+               aria-label="Road network connecting locations A, B, C, D and E">
+            <defs>
+              <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#e8eef6" stroke-width="1"/>
+              </pattern>
+            </defs>
+            <rect width="600" height="390" fill="url(#grid)"/>
+            <g id="roads">
+              <line class="road" data-a="A" data-b="B" x1="80" y1="100" x2="245" y2="70"/>
+              <line class="road" data-a="A" data-b="C" x1="80" y1="100" x2="245" y2="220"/>
+              <line class="road" data-a="B" data-b="C" x1="245" y1="70" x2="245" y2="220"/>
+              <line class="road" data-a="B" data-b="D" x1="245" y1="70" x2="435" y2="130"/>
+              <line class="road" data-a="C" data-b="D" x1="245" y1="220" x2="435" y2="130"/>
+              <line class="road" data-a="C" data-b="E" x1="245" y1="220" x2="435" y2="315"/>
+            </g>
+            <g class="road-label">
+              <text x="155" y="72">2 km</text>
+              <text x="135" y="174">5 km</text>
+              <text x="255" y="150">1 km</text>
+              <text x="330" y="80">4 km</text>
+              <text x="330" y="180">1 km</text>
+              <text x="335" y="280">3 km</text>
+            </g>
+            <g>
+              <circle class="node" cx="80" cy="100" r="22"/>
+              <text class="node-label" x="80" y="100">A</text>
+              <text class="map-name" x="50" y="137">Start</text>
+
+              <circle class="node" cx="245" cy="70" r="22"/>
+              <text class="node-label" x="245" y="70">B</text>
+
+              <circle class="node" cx="245" cy="220" r="22"/>
+              <text class="node-label" x="245" y="220">C</text>
+
+              <circle class="node shelter" cx="435" cy="130" r="22"/>
+              <text class="node-label" x="435" y="130">D</text>
+              <text class="map-name" x="392" y="165">North Shelter</text>
+
+              <circle class="node shelter" cx="435" cy="315" r="22"/>
+              <text class="node-label" x="435" y="315">E</text>
+              <text class="map-name" x="395" y="350">East Shelter</text>
+            </g>
+          </svg>
+        </div>
+        <div class="legend">
+          <span><i class="dot" style="background:#3478f6"></i>Location</span>
+          <span><i class="dot" style="background:#e99a32"></i>Shelter</span>
+          <span><i class="dot" style="background:#16a085"></i>Shortest route</span>
+          <span>Road labels show distance</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-heading">
+          <h2>Find Shortest Route</h2>
+          <span class="pill">DIJKSTRA</span>
+        </div>
+        <div class="controls">
+          <div>
+            <label for="start">Starting location</label>
+            <select id="start">
+              <option>A</option><option>B</option><option>C</option>
+              <option>D</option><option>E</option>
+            </select>
+          </div>
+          <div>
+            <label for="destination">Destination</label>
+            <select id="destination">
+              <option>D</option><option>E</option><option>A</option>
+              <option>B</option><option>C</option>
+            </select>
+          </div>
+        </div>
+        <button class="blue action" id="routeBtn">Calculate Shortest Route</button>
+        <div class="result" id="routeResult" aria-live="polite">
+          Select a start and destination, then calculate a route.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-heading">
+          <h2>Shelter Ranking</h2>
+          <span class="pill">MERGE SORT</span>
+        </div>
+        <p style="color:#718096;font-size:12px;line-height:1.6">
+          Rank reachable shelters from the selected starting location by their shortest-route distance.
+        </p>
+        <button class="green" id="rankBtn">Rank Shelters by Distance</button>
+        <div id="rankingResult" class="result" aria-live="polite">Click the button to display the ranking.</div>
+      </div>
+    </section>
+
+    <aside>
+      <div class="card">
+        <div class="card-heading">
+          <h2>Shelter Capacity</h2>
+          <span class="pill">LIVE DEMO</span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Shelter</th><th>Location</th><th>Capacity</th></tr>
+          </thead>
+          <tbody id="shelterTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-heading">
+          <h2>Evacuation Groups</h2>
+          <span class="pill">SAMPLE DATA</span>
+        </div>
+        <table>
+          <thead><tr><th>Group</th><th>People</th></tr></thead>
+          <tbody id="groupTable"></tbody>
+        </table>
+        <button class="purple action" id="allocateBtn">Allocate Groups (Greedy)</button>
+        <div class="result" id="allocationResult" aria-live="polite">
+          Run the allocation algorithm to see assignments.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Algorithms Used</h2>
+        <div class="algorithm">
+          <strong>01 · Dijkstra's Algorithm</strong>
+          <p>Finds minimum-distance routes in a weighted graph with non-negative road costs.</p>
+          <span class="tag">O((V + E) log V)</span>
+        </div>
+        <div class="algorithm">
+          <strong>02 · Merge Sort</strong>
+          <p>Sorts reachable shelters by route cost using divide and conquer.</p>
+          <span class="tag">O(n log n)</span>
+        </div>
+        <div class="algorithm">
+          <strong>03 · Greedy Allocation</strong>
+          <p>Assigns each group to the nearest shelter that has sufficient remaining capacity.</p>
+          <span class="tag orange">O(G × S)</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Project Details</h2>
+        <div class="result" style="margin-top:12px">
+          <strong>Project:</strong> Flood Evacuation Route and Shelter Allocation System<br>
+          <strong>Subject:</strong> Design and Analysis of Algorithms<br>
+          <strong>Institution:</strong> KIT – Kalaignarkarunanidhi Institute of Technology<br>
+          <strong>Department:</strong> B.E. Computer Science and Engineering
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer>
+  FloodSafe · Academic mini-project · Illustrative data only
+</footer>
+
+<script>
+"use strict";
+
+const locations = ["A", "B", "C", "D", "E"];
+
+const roads = [
+  ["A", "B", 2],
+  ["A", "C", 5],
+  ["B", "C", 1],
+  ["B", "D", 4],
+  ["C", "D", 1],
+  ["C", "E", 3]
+];
+
+const shelters = [
+  { name: "North Shelter", location: "D", capacity: 5 },
+  { name: "East Shelter", location: "E", capacity: 4 }
+];
+
+const groups = [
+  { name: "Group 1", size: 3 },
+  { name: "Group 2", size: 4 },
+  { name: "Group 3", size: 2 }
+];
+
+function buildGraph() {
+  const graph = {};
+  locations.forEach(location => graph[location] = []);
+
+  roads.forEach(([from, to, distance]) => {
+    if (!Number.isFinite(distance) || distance < 0) {
+      throw new Error("Road weights must be non-negative.");
+    }
+    graph[from].push({ node: to, distance });
+    graph[to].push({ node: from, distance });
+  });
+
+  return graph;
+}
+
+const graph = buildGraph();
+
+// Dijkstra: shortest distances and predecessor links from a source.
+function dijkstra(source) {
+  const distances = {};
+  const previous = {};
+  const unvisited = new Set(locations);
+
+  locations.forEach(location => {
+    distances[location] = Infinity;
+    previous[location] = null;
+  });
+
+  distances[source] = 0;
+
+  while (unvisited.size > 0) {
+    let current = null;
+
+    for (const location of unvisited) {
+      if (current === null || distances[location] < distances[current]) {
+        current = location;
+      }
+    }
+
+    if (current === null || distances[current] === Infinity) break;
+    unvisited.delete(current);
+
+    for (const edge of graph[current]) {
+      if (!unvisited.has(edge.node)) continue;
+
+      const candidate = distances[current] + edge.distance;
+      if (candidate < distances[edge.node]) {
+        distances[edge.node] = candidate;
+        previous[edge.node] = current;
+      }
+    }
+  }
+
+  return { distances, previous };
+}
+
+function reconstructPath(previous, source, destination, distance) {
+  if (distance === Infinity) return [];
+
+  const path = [];
+  let current = destination;
+
+  while (current !== null) {
+    path.push(current);
+    if (current === source) break;
+    current = previous[current];
+  }
+
+  path.reverse();
+  return path[0] === source ? path : [];
+}
+
+// Stable Merge Sort for shelter ranking.
+function mergeSort(items, key) {
+  if (items.length <= 1) return items.slice();
+
+  const middle = Math.floor(items.length / 2);
+  const left = mergeSort(items.slice(0, middle), key);
+  const right = mergeSort(items.slice(middle), key);
+  const merged = [];
+
+  let i = 0, j = 0;
+
+  while (i < left.length && j < right.length) {
+    if (key(left[i]) <= key(right[j])) merged.push(left[i++]);
+    else merged.push(right[j++]);
+  }
+
+  return merged.concat(left.slice(i), right.slice(j));
+}
+
+function getRankedShelters(source) {
+  const { distances, previous } = dijkstra(source);
+
+  const reachable = shelters
+    .filter(shelter => distances[shelter.location] !== Infinity)
+    .map(shelter => ({
+      ...shelter,
+      distance: distances[shelter.location],
+      route: reconstructPath(
+        previous, source, shelter.location, distances[shelter.location]
+      )
+    }));
+
+  return mergeSort(reachable, shelter => shelter.distance);
+}
+
+function highlightRoute(path) {
+  document.querySelectorAll(".road").forEach(line => {
+    const a = line.dataset.a;
+    const b = line.dataset.b;
+    const isActive = path.some((node, index) => {
+      if (index === path.length - 1) return false;
+      return (node === a && path[index + 1] === b) ||
+             (node === b && path[index + 1] === a);
+    });
+    line.classList.toggle("active", isActive);
+  });
+}
+
+function calculateRoute() {
+  const source = document.getElementById("start").value;
+  const destination = document.getElementById("destination").value;
+  const { distances, previous } = dijkstra(source);
+  const distance = distances[destination];
+  const path = reconstructPath(previous, source, destination, distance);
+
+  highlightRoute(path);
+
+  const result = document.getElementById("routeResult");
+
+  if (distance === Infinity || path.length === 0) {
+    result.textContent = "No route exists between these locations.";
+    return;
+  }
+
+  result.innerHTML =
+    "<strong>Shortest route found</strong><br>" +
+    "Start: " + source + "<br>" +
+    "Destination: " + destination + "<br>" +
+    "Route: <strong>" + path.join(" → ") + "</strong><br>" +
+    "Total distance: <strong>" + distance + " km</strong><br>" +
+    "<span style='color:#718096'>Calculated using Dijkstra's algorithm.</span>";
+}
+
+function rankShelters() {
+  const source = document.getElementById("start").value;
+  const ranked = getRankedShelters(source);
+  const result = document.getElementById("rankingResult");
+
+  if (ranked.length === 0) {
+    result.textContent = "No shelters are reachable from " + source + ".";
+    return;
+  }
+
+  result.innerHTML = "<strong>Nearest shelters from " + source + "</strong><br>" +
+    ranked.map((shelter, index) =>
+      (index + 1) + ". <strong>" + shelter.name + "</strong><br>" +
+      "&nbsp;&nbsp;Route: " + shelter.route.join(" → ") + "<br>" +
+      "&nbsp;&nbsp;Distance: " + shelter.distance + " km · Capacity: " +
+      shelter.capacity + " people"
+    ).join("<br><br>") +
+    "<br><br><span style='color:#718096'>Sorted using Merge Sort.</span>";
+}
+
+// Greedy allocation: groups are processed in their listed order.
+// Each group goes to the nearest shelter that can fit the entire group.
+function allocateGroups() {
+  const source = document.getElementById("start").value;
+  const ranked = getRankedShelters(source);
+  const remaining = {};
+  ranked.forEach(shelter => remaining[shelter.name] = shelter.capacity);
+
+  const assignments = [];
+  const unassigned = [];
+
+  groups.forEach(group => {
+    const chosen = ranked.find(shelter =>
+      remaining[shelter.name] >= group.size
+    );
+
+    if (!chosen) {
+      unassigned.push(group);
+      assignments.push({
+        group: group.name,
+        size: group.size,
+        message: "Not allocated — insufficient remaining capacity"
+      });
+      return;
+    }
+
+    remaining[chosen.name] -= group.size;
+    assignments.push({
+      group: group.name,
+      size: group.size,
+      shelter: chosen.name,
+      route: chosen.route,
+      distance: chosen.distance,
+      remaining: remaining[chosen.name]
+    });
+  });
+
+  const result = document.getElementById("allocationResult");
+  let html = "<strong>Allocation results</strong><br>";
+
+  assignments.forEach(assignment => {
+    html += "<br><strong>" + assignment.group + " (" + assignment.size +
+      " people)</strong><br>";
+
+    if (assignment.message) {
+      html += "<span style='color:#b45309'>" + assignment.message + "</span>";
+    } else {
+      html += "Shelter: " + assignment.shelter + "<br>" +
+        "Route: " + assignment.route.join(" → ") + "<br>" +
+        "Distance: " + assignment.distance + " km<br>" +
+        "Capacity remaining: " + assignment.remaining;
+    }
+  });
+
+  html += "<br><br><strong>Final shelter capacity</strong><br>";
+  ranked.forEach(shelter => {
+    html += shelter.name + ": " + remaining[shelter.name] +
+      " of " + shelter.capacity + " places remaining<br>";
+  });
+
+  html += "<br><strong>Groups assigned:</strong> " +
+    (groups.length - unassigned.length) + " / " + groups.length;
+
+  if (unassigned.length) {
+    html += "<br><strong>Groups not assigned:</strong> " +
+      unassigned.map(group => group.name).join(", ");
+  }
+
+  html += "<br><br><span style='color:#718096'>Greedy allocation is a heuristic and is not guaranteed to find the globally optimal assignment.</span>";
+
+  result.innerHTML = html;
+  renderShelterTable(remaining);
+}
+
+function renderShelterTable(remaining = null) {
+  const body = document.getElementById("shelterTable");
+  body.innerHTML = "";
+
+  shelters.forEach(shelter => {
+    const left = remaining && remaining[shelter.name] !== undefined
+      ? remaining[shelter.name]
+      : shelter.capacity;
+    const used = shelter.capacity - left;
+    const percent = shelter.capacity === 0 ? 0 : (left / shelter.capacity) * 100;
+
+    const row = document.createElement("tr");
+    row.innerHTML =
+      "<td><strong>" + shelter.name + "</strong>" +
+      "<div class='capacity'><span style='width:" + percent + "%'></span></div></td>" +
+      "<td>" + shelter.location + "</td>" +
+      "<td>" + left + " / " + shelter.capacity +
+      "<div style='color:#718096;font-size:10px'>" + used + " used</div></td>";
+    body.appendChild(row);
+  });
+}
+
+function renderGroupTable() {
+  const body = document.getElementById("groupTable");
+  body.innerHTML = "";
+
+  groups.forEach(group => {
+    const row = document.createElement("tr");
+    row.innerHTML = "<td>" + group.name + "</td><td>" +
+      group.size + " people</td>";
+    body.appendChild(row);
+  });
+}
+
+document.getElementById("routeBtn").addEventListener("click", calculateRoute);
+document.getElementById("rankBtn").addEventListener("click", rankShelters);
+document.getElementById("allocateBtn").addEventListener("click", allocateGroups);
+
+document.getElementById("start").addEventListener("change", () => {
+  highlightRoute([]);
+  document.getElementById("routeResult").textContent =
+    "Choose a destination and calculate a new route.";
+  document.getElementById("rankingResult").textContent =
+    "Click the button to rank shelters from the selected starting location.";
+});
+
+renderShelterTable();
+renderGroupTable();
+calculateRoute();
+</script>
+</body>
+</html>
